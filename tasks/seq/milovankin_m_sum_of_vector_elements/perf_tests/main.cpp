@@ -3,7 +3,7 @@
 #include "core/perf/include/perf.hpp"
 #include "seq/milovankin_m_sum_of_vector_elements/include/ops_seq.hpp"
 
-constexpr auto DATA_SIZE = 50'000'000;
+#define DATA_SIZE 50'000'000;
 
 TEST(milovankin_m_sum_of_vector_elements_seq, test_pipeline_run) {
   // Create data
