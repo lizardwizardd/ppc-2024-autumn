@@ -66,52 +66,33 @@ bool VectorSumPar::pre_processing() {
   int world_size = world.size();
   int total_size = 0;
 
-  // Fill input vector in root process
   if (my_rank == 0) {
     total_size = taskData->inputs_count[0];
-
-    input_.resize(total_size);
     int32_t* input_ptr = reinterpret_cast<int32_t*>(taskData->inputs[0]);
-    std::copy(input_ptr, input_ptr + total_size, input_.begin());
+    input_.assign(input_ptr, input_ptr + total_size);  // Initialize input_ only once in the root
   }
 
   boost::mpi::broadcast(world, total_size, 0);
 
-  // Determine local vector size
-  int local_size = total_size / world_size;
-  int remainder = total_size % world_size;
+  int local_size = total_size / world_size + (my_rank < (total_size % world_size) ? 1 : 0);
+  local_input_.resize(local_size);  // Use a dedicated local_input_
 
-  if (my_rank < remainder) {
-    local_size += 1;
-  }
+  std::vector<int> send_counts(world_size, total_size / world_size);
+  std::vector<int> offsets(world_size, 0);
 
-  input_.resize(local_size);
-
-  // Divide input vector among processes
-  // Vectors are calculated in root process
-  std::vector<int> send_counts, offsets;
   if (my_rank == 0) {
-    send_counts.resize(world_size, total_size / world_size);
-    for (int i = 0; i < remainder; ++i) {
-      send_counts[i]++;
-    }
-
-    offsets.resize(world_size, 0);
-    for (int i = 1; i < world_size; ++i) {
-      offsets[i] = offsets[i - 1] + send_counts[i - 1];
-    }
+    for (int i = 0; i < total_size % world_size; ++i) send_counts[i]++;
+    for (int i = 1; i < world_size; ++i) offsets[i] = offsets[i - 1] + send_counts[i - 1];
   }
 
-  boost::mpi::scatterv(world, reinterpret_cast<int32_t*>(taskData->inputs[0]), send_counts, offsets, input_.data(),
-                       local_size, 0);
-
+  boost::mpi::scatterv(world, input_.data(), send_counts, offsets, local_input_.data(), local_size, 0);
   return true;
 }
 
 bool VectorSumPar::run() {
   internal_order_test();
 
-  int64_t local_sum = std::accumulate(input_.begin(), input_.end(), int64_t(0));
+  int64_t local_sum = std::accumulate(local_input_.begin(), local_input_.end(), int64_t(0));
   boost::mpi::reduce(world, local_sum, sum_, std::plus<int64_t>(), 0);
 
   return true;
@@ -120,9 +101,13 @@ bool VectorSumPar::run() {
 bool VectorSumPar::post_processing() {
   internal_order_test();
 
+  std::cout << "post-" << world.rank() << std::endl;
+
   if (world.rank() == 0) {
     *reinterpret_cast<int64_t*>(taskData->outputs[0]) = sum_;
   }
+
+  std::cout << "endpost-" << world.rank() << std::endl;
 
   return true;
 }

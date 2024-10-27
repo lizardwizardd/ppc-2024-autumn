@@ -32,7 +32,7 @@ class VectorSumPar : public ppc::core::Task {
   bool post_processing() override;
 
  private:
-  std::vector<int32_t> input_;
+  std::vector<int32_t> input_, local_input_;
   int64_t sum_ = 0;
   boost::mpi::communicator world;
 };
