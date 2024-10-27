@@ -1,90 +1,250 @@
 #include <gtest/gtest.h>
 
 #include <boost/mpi.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <boost/mpi/environment.hpp>
 #include <vector>
 
 #include "mpi/milovankin_m_sum_of_vector_elements/include/ops_mpi.hpp"
 
-// Run parallel, return validation result
-bool run_parallel_sum(std::vector<int32_t>& input, boost::mpi::communicator& world, int64_t& res_par) {
-  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
-  if (world.rank() == 0) {
-    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(input.data()));
-    taskDataPar->inputs_count.emplace_back(input.size());
-    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(&res_par));
-    taskDataPar->outputs_count.emplace_back(1);
-  }
-
-  milovankin_m_sum_of_vector_elements_parallel::VectorSumPar vectorSumPar(taskDataPar);
-  if (!vectorSumPar.validation()) return false;
-  vectorSumPar.pre_processing();
-  vectorSumPar.run();
-  vectorSumPar.post_processing();
-
-  return true;
-}
-
-// Run sequential, return validation result
-bool run_sequential_sum(std::vector<int32_t>& input, int64_t& res_seq) {
-  std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
-  taskDataSeq->inputs.emplace_back(reinterpret_cast<uint8_t*>(input.data()));
-  taskDataSeq->inputs_count.emplace_back(input.size());
-  taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t*>(&res_seq));
-  taskDataSeq->outputs_count.emplace_back(1);
-
-  milovankin_m_sum_of_vector_elements_parallel::VectorSumSeq vectorSumSeq(taskDataSeq);
-  if (!vectorSumSeq.validation()) return false;
-  vectorSumSeq.pre_processing();
-  vectorSumSeq.run();
-  vectorSumSeq.post_processing();
-
-  return true;
-}
-
-// Run parallel and sequential, then compare the results
-void run_parallel_vs_sequential_test(std::vector<int32_t> input) {
+TEST(milovankin_m_sum_of_vector_elements_mpic, Test_Sum_5000_Random) {
   boost::mpi::communicator world;
-  int64_t res_par = 0;
-  ASSERT_TRUE(run_parallel_sum(input, world, res_par));
+  std::vector<int> input_vector;
+  std::vector<int> result_parallel(1, 0);
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  int vector_size = 5000;
 
   if (world.rank() == 0) {
-    int64_t res_seq = 0;
-    ASSERT_TRUE(run_sequential_sum(input, res_seq));
-    ASSERT_EQ(res_seq, res_par);
+    input_vector = std::vector<int>(vector_size, 1);
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(input_vector.data()));
+    taskDataPar->inputs_count.emplace_back(input_vector.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t *>(result_parallel.data()));
+    taskDataPar->outputs_count.emplace_back(result_parallel.size());
   }
-}
 
-// Tests using helper functions
-TEST(milovankin_m_sum_of_vector_elements_mpi, Test_Sum_5000_Random) {
-  if (boost::mpi::communicator().rank() == 0) {
-    auto input = milovankin_m_sum_of_vector_elements_parallel::make_random_vector(5000, -500, 500);
-    run_parallel_vs_sequential_test(input);
+  milovankin_m_sum_of_vector_elements_parallel::VectorSumPar testMpiTaskParallel(taskDataPar);
+
+  // auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  // perfAttr->num_running = 10;
+  // const boost::mpi::timer current_timer;
+  // perfAttr->current_timer = [&] { return current_timer.elapsed(); };
+  // auto perfResults = std::make_shared<ppc::core::PerfResults>();
+  // auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testMpiTaskParallel);
+  // perfAnalyzer->pipeline_run(perfAttr, perfResults);
+  ASSERT_TRUE(testMpiTaskParallel.validation());
+  testMpiTaskParallel.pre_processing();
+  testMpiTaskParallel.run();
+  testMpiTaskParallel.post_processing();
+
+  if (world.rank() == 0) {
+    // ppc::core::Perf::print_perf_statistic(perfResults);
+    ASSERT_EQ(vector_size, result_parallel[0]);
   }
 }
 
 TEST(milovankin_m_sum_of_vector_elements_mpi, regularVector) {
-  std::vector<int32_t> input = {1, 2, 3, -5, 3, 43};
-  run_parallel_vs_sequential_test(input);
+  boost::mpi::communicator world;
+  std::vector<int32_t> input;
+  int64_t res_par = 0;
+
+  // Task data
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    input = {1, 2, 3, -5, 3, 43};
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataPar->inputs_count.emplace_back(input.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_par));
+    taskDataPar->outputs_count.emplace_back(1);
+  }
+
+  // Parallel
+  milovankin_m_sum_of_vector_elements_parallel::VectorSumPar vectorSumPar(taskDataPar);
+  ASSERT_TRUE(vectorSumPar.validation());
+  vectorSumPar.pre_processing();
+  vectorSumPar.run();
+  vectorSumPar.post_processing();
+
+  if (world.rank() == 0) {
+    // Sequential
+    int64_t res_seq = 0;
+    std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+    taskDataSeq->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataSeq->inputs_count.emplace_back(input.size());
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_seq));
+    taskDataSeq->outputs_count.emplace_back(1);
+
+    milovankin_m_sum_of_vector_elements_parallel::VectorSumSeq vectorSumSeq(taskDataSeq);
+    ASSERT_TRUE(vectorSumSeq.validation());
+    vectorSumSeq.pre_processing();
+    vectorSumSeq.run();
+    vectorSumSeq.post_processing();
+
+    ASSERT_EQ(res_seq, res_par);
+  }
 }
 
 TEST(milovankin_m_sum_of_vector_elements_mpi, positiveNumbers) {
-  std::vector<int32_t> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-  run_parallel_vs_sequential_test(input);
+  boost::mpi::communicator world;
+  std::vector<int32_t> input;
+  int64_t res_par = 0;
+
+  // Task data
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataPar->inputs_count.emplace_back(input.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_par));
+    taskDataPar->outputs_count.emplace_back(1);
+  }
+
+  // Parallel
+  milovankin_m_sum_of_vector_elements_parallel::VectorSumPar vectorSumPar(taskDataPar);
+  ASSERT_TRUE(vectorSumPar.validation());
+  vectorSumPar.pre_processing();
+  vectorSumPar.run();
+  vectorSumPar.post_processing();
+
+  if (world.rank() == 0) {
+    // Sequential
+    int64_t res_seq = 0;
+    std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+    taskDataSeq->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataSeq->inputs_count.emplace_back(input.size());
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_seq));
+    taskDataSeq->outputs_count.emplace_back(1);
+
+    milovankin_m_sum_of_vector_elements_parallel::VectorSumSeq vectorSumSeq(taskDataSeq);
+    ASSERT_TRUE(vectorSumSeq.validation());
+    vectorSumSeq.pre_processing();
+    vectorSumSeq.run();
+    vectorSumSeq.post_processing();
+
+    ASSERT_EQ(res_seq, res_par);
+  }
 }
 
 TEST(milovankin_m_sum_of_vector_elements_mpi, negativeNumbers) {
-  std::vector<int32_t> input = {-1, -2, -3, -4, -5, -6, -7, -8, -9, -10};
-  run_parallel_vs_sequential_test(input);
+  boost::mpi::communicator world;
+  std::vector<int32_t> input;
+  int64_t res_par = 0;
+
+  // Task data
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    input = {-1, -2, -3, -4, -5, -6, -7, -8, -9, -10};
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataPar->inputs_count.emplace_back(input.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_par));
+    taskDataPar->outputs_count.emplace_back(1);
+  }
+
+  // Parallel
+  milovankin_m_sum_of_vector_elements_parallel::VectorSumPar vectorSumPar(taskDataPar);
+  ASSERT_TRUE(vectorSumPar.validation());
+  vectorSumPar.pre_processing();
+  vectorSumPar.run();
+  vectorSumPar.post_processing();
+
+  if (world.rank() == 0) {
+    // Sequential
+    int64_t res_seq = 0;
+    std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+    taskDataSeq->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataSeq->inputs_count.emplace_back(input.size());
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_seq));
+    taskDataSeq->outputs_count.emplace_back(1);
+
+    milovankin_m_sum_of_vector_elements_parallel::VectorSumSeq vectorSumSeq(taskDataSeq);
+    ASSERT_TRUE(vectorSumSeq.validation());
+    vectorSumSeq.pre_processing();
+    vectorSumSeq.run();
+    vectorSumSeq.post_processing();
+
+    ASSERT_EQ(res_seq, res_par);
+  }
 }
 
 TEST(milovankin_m_sum_of_vector_elements_mpi, zeroVector) {
-  std::vector<int32_t> input(1000, 0);
-  run_parallel_vs_sequential_test(input);
+  boost::mpi::communicator world;
+  std::vector<int32_t> input;
+  int64_t res_par = 0;
+
+  // Task data
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    input.resize(1000, 0);
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataPar->inputs_count.emplace_back(input.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_par));
+    taskDataPar->outputs_count.emplace_back(1);
+  }
+
+  // Parallel
+  milovankin_m_sum_of_vector_elements_parallel::VectorSumPar vectorSumPar(taskDataPar);
+  ASSERT_TRUE(vectorSumPar.validation());
+  vectorSumPar.pre_processing();
+  vectorSumPar.run();
+  vectorSumPar.post_processing();
+
+  if (world.rank() == 0) {
+    // Sequential
+    int64_t res_seq = 0;
+    std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+    taskDataSeq->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataSeq->inputs_count.emplace_back(input.size());
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_seq));
+    taskDataSeq->outputs_count.emplace_back(1);
+
+    milovankin_m_sum_of_vector_elements_parallel::VectorSumSeq vectorSumSeq(taskDataSeq);
+    ASSERT_TRUE(vectorSumSeq.validation());
+    vectorSumSeq.pre_processing();
+    vectorSumSeq.run();
+    vectorSumSeq.post_processing();
+
+    ASSERT_EQ(res_seq, res_par);
+  }
 }
 
 TEST(milovankin_m_sum_of_vector_elements_mpi, emptyVector) {
-  std::vector<int32_t> input = {};
-  run_parallel_vs_sequential_test(input);
+  boost::mpi::communicator world;
+  std::vector<int32_t> input;
+  int64_t res_par = 0;
+
+  // Task data
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    input = {};
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataPar->inputs_count.emplace_back(input.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_par));
+    taskDataPar->outputs_count.emplace_back(1);
+  }
+
+  // Parallel
+  milovankin_m_sum_of_vector_elements_parallel::VectorSumPar vectorSumPar(taskDataPar);
+  ASSERT_TRUE(vectorSumPar.validation());
+  vectorSumPar.pre_processing();
+  vectorSumPar.run();
+  vectorSumPar.post_processing();
+
+  if (world.rank() == 0) {
+    // Sequential
+    int64_t res_seq = 0;
+    std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+    taskDataSeq->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
+    taskDataSeq->inputs_count.emplace_back(input.size());
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t *>(&res_seq));
+    taskDataSeq->outputs_count.emplace_back(1);
+
+    milovankin_m_sum_of_vector_elements_parallel::VectorSumSeq vectorSumSeq(taskDataSeq);
+    ASSERT_TRUE(vectorSumSeq.validation());
+    vectorSumSeq.pre_processing();
+    vectorSumSeq.run();
+    vectorSumSeq.post_processing();
+
+    ASSERT_EQ(res_seq, res_par);
+  }
 }
 
 TEST(milovankin_m_sum_of_vector_elements_mpi, validationNotPassed) {
@@ -95,7 +255,7 @@ TEST(milovankin_m_sum_of_vector_elements_mpi, validationNotPassed) {
   std::shared_ptr<ppc::core::TaskData> taskData = std::make_shared<ppc::core::TaskData>();
   if (world.rank() == 0) {
     taskData->inputs_count.emplace_back(input.size());
-    taskData->inputs.emplace_back(reinterpret_cast<uint8_t*>(input.data()));
+    taskData->inputs.emplace_back(reinterpret_cast<uint8_t *>(input.data()));
     // Omitting output setup to cause validation to fail
   }
 

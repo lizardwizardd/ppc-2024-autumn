@@ -23,10 +23,6 @@ TEST(milovankin_m_sum_of_vector_elements_mpi, test_pipeline_run) {
   }
 
   auto testMpiTaskParallel = std::make_shared<milovankin_m_sum_of_vector_elements_parallel::VectorSumPar>(taskDataPar);
-  ASSERT_TRUE(testMpiTaskParallel->validation());
-  testMpiTaskParallel->pre_processing();
-  testMpiTaskParallel->run();
-  testMpiTaskParallel->post_processing();
 
   auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
   perfAttr->num_running = 10;
@@ -38,7 +34,7 @@ TEST(milovankin_m_sum_of_vector_elements_mpi, test_pipeline_run) {
 
   if (world.rank() == 0) {
     ppc::core::Perf::print_perf_statistic(perfResults);
-    ASSERT_EQ(vector_size, result_parallel[0]);  // Validate that the sum is correct
+    ASSERT_EQ(vector_size, result_parallel[0]);
   }
 }
 
@@ -58,10 +54,6 @@ TEST(milovankin_m_sum_of_vector_elements_mpi, test_task_run) {
   }
 
   auto testMpiTaskParallel = std::make_shared<milovankin_m_sum_of_vector_elements_parallel::VectorSumPar>(taskDataPar);
-  ASSERT_TRUE(testMpiTaskParallel->validation());
-  testMpiTaskParallel->pre_processing();
-  testMpiTaskParallel->run();
-  testMpiTaskParallel->post_processing();
 
   auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
   perfAttr->num_running = 10;
