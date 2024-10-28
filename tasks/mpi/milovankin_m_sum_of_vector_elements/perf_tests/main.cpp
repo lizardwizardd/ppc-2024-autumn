@@ -15,7 +15,7 @@ TEST(milovankin_m_sum_of_vector_elements_mpi, test_pipeline_run) {
   int vector_size = DATA_SIZE;
 
   if (world.rank() == 0) {
-    input_vector = std::vector<int32_t>(vector_size, 1);
+    input_vector.resize(vector_size, 1);
     taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(input_vector.data()));
     taskDataPar->inputs_count.emplace_back(input_vector.size());
     taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(result_parallel.data()));
@@ -30,6 +30,7 @@ TEST(milovankin_m_sum_of_vector_elements_mpi, test_pipeline_run) {
   perfAttr->current_timer = [&] { return current_timer.elapsed(); };
   auto perfResults = std::make_shared<ppc::core::PerfResults>();
   auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testMpiTaskParallel);
+
   perfAnalyzer->pipeline_run(perfAttr, perfResults);
 
   if (world.rank() == 0) {

@@ -1,5 +1,5 @@
 #include "mpi/milovankin_m_sum_of_vector_elements/include/ops_mpi.hpp"
-
+// #include <thread>
 namespace milovankin_m_sum_of_vector_elements_parallel {
 
 std::vector<int32_t> make_random_vector(int32_t size, int32_t val_min, int32_t val_max) {
@@ -93,9 +93,7 @@ bool VectorSumPar::run() {
   internal_order_test();
 
   int64_t local_sum = std::accumulate(local_input_.begin(), local_input_.end(), int64_t(0));
-  std::cout << "reducing..." << std::endl;
   boost::mpi::reduce(world, local_sum, sum_, std::plus<int64_t>(), 0);
-  std::cout << "reduced." << std::endl;
   return true;
 }
 
