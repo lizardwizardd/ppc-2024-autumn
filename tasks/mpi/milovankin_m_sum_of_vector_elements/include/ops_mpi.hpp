@@ -7,7 +7,7 @@
 
 namespace milovankin_m_sum_of_vector_elements_parallel {
 
-[[nodiscard]] std::vector<int32_t> make_random_vector(int32_t size, int32_t minVal, int32_t maxVal);
+[[nodiscard]] std::vector<int32_t> make_random_vector(int32_t size, int32_t val_min, int32_t val_max);
 
 // No changes to seq version
 class VectorSumSeq : public ppc::core::Task {

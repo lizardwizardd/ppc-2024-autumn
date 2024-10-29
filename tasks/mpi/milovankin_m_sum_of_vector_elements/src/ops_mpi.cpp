@@ -26,7 +26,7 @@ bool VectorSumSeq::pre_processing() {
   internal_order_test();
 
   // Fill input vector from taskData
-  int32_t* input_ptr = reinterpret_cast<int32_t*>(taskData->inputs[0]);
+  auto* input_ptr = reinterpret_cast<int32_t*>(taskData->inputs[0]);
   input_.resize(taskData->inputs_count[0]);
   std::copy(input_ptr, input_ptr + taskData->inputs_count[0], input_.begin());
 
@@ -69,7 +69,7 @@ bool VectorSumPar::pre_processing() {
 
   if (my_rank == 0) {
     total_size = taskData->inputs_count[0];
-    int32_t* input_ptr = reinterpret_cast<int32_t*>(taskData->inputs[0]);
+    auto* input_ptr = reinterpret_cast<int32_t*>(taskData->inputs[0]);
     input_.assign(input_ptr, input_ptr + total_size);
   }
 
@@ -93,7 +93,7 @@ bool VectorSumPar::run() {
   internal_order_test();
 
   int64_t local_sum = std::accumulate(local_input_.begin(), local_input_.end(), int64_t(0));
-  boost::mpi::reduce(world, local_sum, sum_, std::plus<int64_t>(), 0);
+  boost::mpi::reduce(world, local_sum, sum_, std::plus<>(), 0);
   return true;
 }
 
