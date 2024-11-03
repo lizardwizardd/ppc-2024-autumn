@@ -7,6 +7,18 @@
 
 #include "mpi/milovankin_m_sum_of_vector_elements/include/ops_mpi.hpp"
 
+namespace milovankin_m_sum_of_vector_elements_parallel {
+[[nodiscard]] std::vector<int32_t> make_random_vector(int32_t size, int32_t val_min, int32_t val_max) {
+  std::vector<int32_t> new_vector(size);
+
+  for (int32_t i = 0; i < size; i++) {
+    new_vector[i] = rand() % (val_max - val_min + 1) + val_min;
+  }
+
+  return new_vector;
+}
+}  // namespace milovankin_m_sum_of_vector_elements_parallel
+
 void run_parallel_and_sequential_tasks(std::vector<int32_t> &input_vector, int64_t expected_sum) {
   boost::mpi::communicator world;
   std::vector<int64_t> result_parallel(1, 0);

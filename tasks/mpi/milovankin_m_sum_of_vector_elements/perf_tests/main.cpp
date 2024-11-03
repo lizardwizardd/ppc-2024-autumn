@@ -5,14 +5,12 @@
 #include "core/perf/include/perf.hpp"
 #include "mpi/milovankin_m_sum_of_vector_elements/include/ops_mpi.hpp"
 
-#define DATA_SIZE 50'000'000;
-
 TEST(milovankin_m_sum_of_vector_elements_mpi, test_pipeline_run) {
   boost::mpi::communicator world;
   std::vector<int32_t> input_vector;
   std::vector<int64_t> result_parallel(1, 0);
   std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
-  int vector_size = DATA_SIZE;
+  int vector_size = 50'000'000;
 
   if (world.rank() == 0) {
     input_vector.resize(vector_size, 1);
@@ -44,7 +42,7 @@ TEST(milovankin_m_sum_of_vector_elements_mpi, test_task_run) {
   std::vector<int32_t> input_vector;
   std::vector<int64_t> result_parallel(1, 0);
   std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
-  int vector_size = DATA_SIZE;
+  int vector_size = 50'000'000;
 
   if (world.rank() == 0) {
     input_vector = std::vector<int32_t>(vector_size, 1);

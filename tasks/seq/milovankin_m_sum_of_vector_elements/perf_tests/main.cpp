@@ -3,11 +3,9 @@
 #include "core/perf/include/perf.hpp"
 #include "seq/milovankin_m_sum_of_vector_elements/include/ops_seq.hpp"
 
-#define DATA_SIZE 50'000'000;
-
 TEST(milovankin_m_sum_of_vector_elements_seq, test_pipeline_run) {
   // Create data
-  const int32_t vec_size = DATA_SIZE;
+  const int32_t vec_size = 50'000'000;
   std::vector<int32_t> input_data(vec_size, 1);
   auto expected_sum = static_cast<int64_t>(vec_size);
   int64_t actual_sum = 0;
@@ -44,7 +42,7 @@ TEST(milovankin_m_sum_of_vector_elements_seq, test_pipeline_run) {
 }
 
 TEST(milovankin_m_sum_of_vector_elements_seq, test_task_run) {
-  const int32_t count = DATA_SIZE;
+  const int32_t count = 50'000'000;
   std::vector<int32_t> input_data(count, 1);
   auto expected_sum = static_cast<int64_t>(count);
   int64_t actual_sum = 0;
