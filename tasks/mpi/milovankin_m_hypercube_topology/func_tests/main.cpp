@@ -9,22 +9,6 @@
 #include "mpi/milovankin_m_hypercube_topology/include/ops_mpi.hpp"
 
 namespace milovankin_m_hypercube_topology {
-// Calculate expected path from 0 to destination
-[[nodiscard]] static std::vector<int> calculate_path(int dest) {
-  std::vector<int> path = {0};
-
-  int current = 0;
-  for (uint16_t i = 0; i <= std::log2(dest); ++i) {
-    uint16_t next = current ^ (1 << i);  // flip i-th bit
-    if ((next ^ dest) < (current ^ dest)) {
-      path.push_back(next);
-      current = next;
-    }
-  }
-
-  return path;
-}
-
 static void run_test_parallel(const std::string& data, int dest, std::vector<int> path_expected = {}) {
   boost::mpi::communicator world;
   if (world.size() < 4) return;  // tests are designed for 4+ processes
@@ -32,7 +16,7 @@ static void run_test_parallel(const std::string& data, int dest, std::vector<int
   std::vector<char> data_in(data.begin(), data.end());
   std::vector<char> data_out(data_in.size());
 
-  if (path_expected.empty()) path_expected = calculate_path(dest);
+  if (path_expected.empty()) path_expected = Hypercube::calculate_path(dest);
   std::vector<int> path_actual(std::log2(world.size()) + 1, -1);
 
   // Create task data
@@ -72,25 +56,25 @@ TEST(milovankin_m_hypercube_topology, calculate_path_tests) {
   std::vector<int> expect;
 
   expect = {0, 1};  // 0 -> 1
-  EXPECT_EQ(milovankin_m_hypercube_topology::calculate_path(1), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(1), expect);
 
   expect = {0, 1, 3};  // 00 -> 01 -> 11
-  EXPECT_EQ(milovankin_m_hypercube_topology::calculate_path(3), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(3), expect);
 
   expect = {0, 4};  // 00 -> 10
-  EXPECT_EQ(milovankin_m_hypercube_topology::calculate_path(4), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(4), expect);
 
   expect = {0, 1, 5};  // 000 -> 001 -> 101
-  EXPECT_EQ(milovankin_m_hypercube_topology::calculate_path(5), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(5), expect);
 
   expect = {0, 1, 3, 7};  // 000 -> 001 -> 011 -> 111
-  EXPECT_EQ(milovankin_m_hypercube_topology::calculate_path(7), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(7), expect);
 
   expect = {0, 2, 6, 14};  // 0000 -> 0010 -> 0110 -> 1110
-  EXPECT_EQ(milovankin_m_hypercube_topology::calculate_path(14), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(14), expect);
 
   expect = {0, 1, 5, 13, 29};  // 00000 -> 00001 -> 000101 -> 01101 -> 11101
-  EXPECT_EQ(milovankin_m_hypercube_topology::calculate_path(29), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(29), expect);
 }
 
 TEST(milovankin_m_hypercube_topology, normal_input_1) {
@@ -113,6 +97,6 @@ TEST(milovankin_m_hypercube_topology, large_string) {
 TEST(milovankin_m_hypercube_topology, any_processor_count_auto_test) {
   boost::mpi::communicator world;
   int dest = world.size() / 3 * 2;
-  std::vector<int> expected_path = milovankin_m_hypercube_topology::calculate_path(dest);
+  std::vector<int> expected_path = milovankin_m_hypercube_topology::Hypercube::calculate_path(dest);
   milovankin_m_hypercube_topology::run_test_parallel("123 456 789", dest, expected_path);
 }

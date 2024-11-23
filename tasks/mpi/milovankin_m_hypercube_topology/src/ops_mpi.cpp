@@ -88,12 +88,28 @@ bool milovankin_m_hypercube_topology::Hypercube::post_processing() {
   world.barrier();
 
   if (world.rank() == 0) {
-    auto data_out_ptr = reinterpret_cast<char*>(taskData->outputs[0]);
+    auto* data_out_ptr = reinterpret_cast<char*>(taskData->outputs[0]);
     std::copy(data_.data.begin(), data_.data.end(), data_out_ptr);
 
-    auto path_out_ptr = reinterpret_cast<int*>(taskData->outputs[1]);
+    auto* path_out_ptr = reinterpret_cast<int*>(taskData->outputs[1]);
     std::copy(data_.path.begin(), data_.path.end(), path_out_ptr);
   }
 
   return true;
+}
+
+// Calculate expected path from 0 to destination
+std::vector<int> milovankin_m_hypercube_topology::Hypercube::calculate_path(int dest) {
+  std::vector<int> path = {0};
+
+  int current = 0;
+  for (uint16_t i = 0; i <= std::log2(dest); ++i) {
+    uint16_t next = current ^ (1 << i);  // flip i-th bit
+    if ((next ^ dest) < (current ^ dest)) {
+      path.push_back(next);
+      current = next;
+    }
+  }
+
+  return path;
 }

@@ -30,12 +30,13 @@ class Hypercube : public ppc::core::Task {
     }
   };
 
- public:
   explicit Hypercube(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
   bool pre_processing() override;
   bool validation() override;
   bool run() override;
   bool post_processing() override;
+
+  [[nodiscard]] static std::vector<int> calculate_path(int dest);
 
  private:
   boost::mpi::communicator world;
