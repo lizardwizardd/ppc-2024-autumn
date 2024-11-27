@@ -13,29 +13,22 @@ TEST(milovankin_m_hypercube_topology, test_pipeline_run) {
   boost::mpi::communicator world;
   if (world.size() < 4) return;  // tests are designed for 4+ processes
 
-  // Prepare data
-  std::vector<char> data_in(16381, 'x');
-  std::vector<char> data_out(data_in.size());
-
+  const std::string data_input(16381, 'x');
   int dest = world.size() - 1;
-  std::vector<int> path_expected(milovankin_m_hypercube_topology::Hypercube::calculate_path(dest));
-  std::vector<int> path_actual(std::log2(world.size()) + 1, -1);
+  milovankin_m_hypercube_topology::Hypercube::DataIn data_in_struct(data_input, dest);
+  milovankin_m_hypercube_topology::Hypercube::DataIn data_out_struct;
 
-  // Create task data
+  std::vector<int> route_expected = milovankin_m_hypercube_topology::Hypercube::calculate_route(dest);
+
   std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
   if (world.rank() == 0) {
-    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(data_in.data()));
-    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&dest));
-    taskDataPar->inputs_count.emplace_back(data_in.size());
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&data_in_struct));
     taskDataPar->inputs_count.emplace_back(1);
 
-    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(data_out.data()));
-    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(path_actual.data()));
-    taskDataPar->outputs_count.emplace_back(data_out.size());
-    taskDataPar->outputs_count.emplace_back(path_actual.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(&data_out_struct));
+    taskDataPar->outputs_count.emplace_back(1);
   }
 
-  // Run pipeline
   auto testMpiTaskParallel = std::make_shared<milovankin_m_hypercube_topology::Hypercube>(taskDataPar);
   auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
   perfAttr->num_running = 10;
@@ -49,9 +42,8 @@ TEST(milovankin_m_hypercube_topology, test_pipeline_run) {
   // Assert
   if (world.rank() == 0) {
     ppc::core::Perf::print_perf_statistic(perfResults);
-    path_actual.resize(path_expected.size(), -1);
-    ASSERT_EQ(data_out, data_in);
-    ASSERT_EQ(path_actual, path_expected);
+    ASSERT_EQ(data_out_struct.data, data_in_struct.data);
+    ASSERT_EQ(data_out_struct.route, route_expected);
   }
 }
 
@@ -59,29 +51,22 @@ TEST(milovankin_m_hypercube_topology, test_task_run) {
   boost::mpi::communicator world;
   if (world.size() < 4) return;  // tests are designed for 4+ processes
 
-  // Prepare data
-  std::vector<char> data_in(16384, 'x');
-  std::vector<char> data_out(data_in.size());
-
+  const std::string data_input(16381, 'x');
   int dest = world.size() - 1;
-  std::vector<int> path_expected(milovankin_m_hypercube_topology::Hypercube::calculate_path(dest));
-  std::vector<int> path_actual(std::log2(world.size()) + 1, -1);
+  milovankin_m_hypercube_topology::Hypercube::DataIn data_in_struct(data_input, dest);
+  milovankin_m_hypercube_topology::Hypercube::DataIn data_out_struct;
 
-  // Create task data
+  std::vector<int> route_expected = milovankin_m_hypercube_topology::Hypercube::calculate_route(dest);
+
   std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
   if (world.rank() == 0) {
-    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(data_in.data()));
-    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&dest));
-    taskDataPar->inputs_count.emplace_back(data_in.size());
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&data_in_struct));
     taskDataPar->inputs_count.emplace_back(1);
 
-    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(data_out.data()));
-    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(path_actual.data()));
-    taskDataPar->outputs_count.emplace_back(data_out.size());
-    taskDataPar->outputs_count.emplace_back(path_actual.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(&data_out_struct));
+    taskDataPar->outputs_count.emplace_back(1);
   }
 
-  // Run pipeline
   auto testMpiTaskParallel = std::make_shared<milovankin_m_hypercube_topology::Hypercube>(taskDataPar);
   auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
   perfAttr->num_running = 10;
@@ -95,8 +80,7 @@ TEST(milovankin_m_hypercube_topology, test_task_run) {
   // Assert
   if (world.rank() == 0) {
     ppc::core::Perf::print_perf_statistic(perfResults);
-    path_actual.resize(path_expected.size(), -1);
-    ASSERT_EQ(data_out, data_in);
-    ASSERT_EQ(path_actual, path_expected);
+    ASSERT_EQ(data_out_struct.data, data_in_struct.data);
+    ASSERT_EQ(data_out_struct.route, route_expected);
   }
 }

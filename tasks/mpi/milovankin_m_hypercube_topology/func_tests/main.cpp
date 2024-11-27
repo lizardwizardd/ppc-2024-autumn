@@ -9,72 +9,100 @@
 #include "mpi/milovankin_m_hypercube_topology/include/ops_mpi.hpp"
 
 namespace milovankin_m_hypercube_topology {
-static void run_test_parallel(const std::string& data, int dest, std::vector<int> path_expected = {}) {
+static void run_test_parallel(const std::string& data, int dest, std::vector<int> route_expected = {}) {
   boost::mpi::communicator world;
   if (world.size() < 4) return;  // tests are designed for 4+ processes
 
-  std::vector<char> data_in(data.begin(), data.end());
-  std::vector<char> data_out(data_in.size());
+  milovankin_m_hypercube_topology::Hypercube::DataIn data_in_struct(data, dest);
+  milovankin_m_hypercube_topology::Hypercube::DataIn data_out_struct;
 
-  if (path_expected.empty()) path_expected = Hypercube::calculate_path(dest);
-  std::vector<int> path_actual(std::log2(world.size()) + 1, -1);
-
-  // Create task data
-  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
-  if (world.rank() == 0) {
-    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(data_in.data()));
-    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&dest));
-    taskDataPar->inputs_count.emplace_back(data_in.size());
-    taskDataPar->inputs_count.emplace_back(1);
-
-    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(data_out.data()));
-    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(path_actual.data()));
-    taskDataPar->outputs_count.emplace_back(data_out.size());
-    taskDataPar->outputs_count.emplace_back(path_actual.size());
+  if (route_expected.empty()) {
+    route_expected = milovankin_m_hypercube_topology::Hypercube::calculate_route(dest);
   }
 
-  // Run parallel
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&data_in_struct));
+    taskDataPar->inputs_count.emplace_back(1);
+
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(&data_out_struct));
+    taskDataPar->outputs_count.emplace_back(1);
+  }
+
   milovankin_m_hypercube_topology::Hypercube Hypercube(taskDataPar);
+
+  // Edge cases
+  if ((world.size() & (world.size() - 1)) != 0) {  // not a power of 2
+    ASSERT_FALSE(Hypercube.validation());
+    return;
+  }
+  if (dest == 0 || dest >= world.size()) {
+    ASSERT_TRUE(Hypercube.validation());
+    if (world.rank() == 0) {
+      ASSERT_FALSE(Hypercube.pre_processing());
+    }
+    return;
+  }
+
   ASSERT_TRUE(Hypercube.validation());
   ASSERT_TRUE(Hypercube.pre_processing());
+
   Hypercube.run();
   Hypercube.post_processing();
 
   // Assert
   if (world.rank() == 0) {
-    path_actual.resize(path_expected.size(), -1);
-    ASSERT_EQ(data_out, data_in);
-    ASSERT_EQ(path_actual, path_expected);
+    ASSERT_EQ(data_out_struct.data, data_in_struct.data);
+    ASSERT_EQ(data_out_struct.route, route_expected);
   }
 }
 }  // namespace milovankin_m_hypercube_topology
 
-TEST(milovankin_m_hypercube_topology, calculate_path_tests) {
+TEST(milovankin_m_hypercube_topology, calculate_route_tests) {
   boost::mpi::communicator world;
   if (world.rank() != 0) return;
 
   std::vector<int> expect;
 
+  expect = {0};  // 0
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_route(0), expect);
+
   expect = {0, 1};  // 0 -> 1
-  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(1), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_route(1), expect);
+
+  expect = {0, 2};  // 0 -> 10
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_route(2), expect);
 
   expect = {0, 1, 3};  // 00 -> 01 -> 11
-  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(3), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_route(3), expect);
 
-  expect = {0, 4};  // 00 -> 10
-  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(4), expect);
+  expect = {0, 4};  // 00 -> 100
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_route(4), expect);
 
   expect = {0, 1, 5};  // 000 -> 001 -> 101
-  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(5), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_route(5), expect);
 
   expect = {0, 1, 3, 7};  // 000 -> 001 -> 011 -> 111
-  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(7), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_route(7), expect);
 
   expect = {0, 2, 6, 14};  // 0000 -> 0010 -> 0110 -> 1110
-  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(14), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_route(14), expect);
 
   expect = {0, 1, 5, 13, 29};  // 00000 -> 00001 -> 000101 -> 01101 -> 11101
-  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_path(29), expect);
+  EXPECT_EQ(milovankin_m_hypercube_topology::Hypercube::calculate_route(29), expect);
+}
+
+TEST(milovankin_m_hypercube_topology, same_source_and_destination) {
+  milovankin_m_hypercube_topology::run_test_parallel("something something", 0, {0});
+}
+
+TEST(milovankin_m_hypercube_topology, validation_failed_wrong_task_data) {
+  boost::mpi::communicator world;
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  milovankin_m_hypercube_topology::Hypercube Hypercube(taskDataPar);
+  if (world.rank() == 0) {
+    ASSERT_FALSE(Hypercube.validation());
+  }
 }
 
 TEST(milovankin_m_hypercube_topology, normal_input_1) {
@@ -97,6 +125,6 @@ TEST(milovankin_m_hypercube_topology, large_string) {
 TEST(milovankin_m_hypercube_topology, any_processor_count_auto_test) {
   boost::mpi::communicator world;
   int dest = world.size() / 3 * 2;
-  std::vector<int> expected_path = milovankin_m_hypercube_topology::Hypercube::calculate_path(dest);
-  milovankin_m_hypercube_topology::run_test_parallel("123 456 789", dest, expected_path);
+  std::vector<int> expected_route = milovankin_m_hypercube_topology::Hypercube::calculate_route(dest);
+  milovankin_m_hypercube_topology::run_test_parallel("123 456 789", dest, expected_route);
 }

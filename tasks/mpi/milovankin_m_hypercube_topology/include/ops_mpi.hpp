@@ -14,9 +14,8 @@ namespace milovankin_m_hypercube_topology {
 class Hypercube : public ppc::core::Task {
  public:
   struct DataIn {
-    std::vector<int> path;
+    std::vector<int> route;
     std::vector<char> data;
-
     int destination;
 
     DataIn() = default;
@@ -26,17 +25,18 @@ class Hypercube : public ppc::core::Task {
     void serialize(Archive& ar, unsigned int version) {
       ar & destination;
       ar & data;
-      ar & path;
+      ar & route;
     }
   };
 
   explicit Hypercube(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+
   bool pre_processing() override;
   bool validation() override;
   bool run() override;
   bool post_processing() override;
 
-  [[nodiscard]] static std::vector<int> calculate_path(int dest);
+  [[nodiscard]] static std::vector<int> calculate_route(int dest);
 
  private:
   boost::mpi::communicator world;
