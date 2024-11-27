@@ -96,6 +96,10 @@ TEST(milovankin_m_hypercube_topology, same_source_and_destination) {
   milovankin_m_hypercube_topology::run_test_parallel("something something", 0, {0});
 }
 
+TEST(milovankin_m_hypercube_topology, target_process_out_of_range) {
+  milovankin_m_hypercube_topology::run_test_parallel("something something", 999999, {0});
+}
+
 TEST(milovankin_m_hypercube_topology, validation_failed_wrong_task_data) {
   boost::mpi::communicator world;
   std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();

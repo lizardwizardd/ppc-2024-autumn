@@ -25,7 +25,7 @@ bool milovankin_m_hypercube_topology::Hypercube::pre_processing() {
   if (world.rank() == 0) {
     auto* dataInPtr = reinterpret_cast<DataIn*>(taskData->inputs[0]);
     data_ = *dataInPtr;
-    if (data_.destination == 0) {
+    if (data_.destination >= world.size() || data_.destination <= 0) {
       return false;
     }
     data_.route.clear();
