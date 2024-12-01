@@ -60,7 +60,7 @@ static void run_test_parallel(const std::string& data, int dest, std::vector<int
 
 TEST(milovankin_m_hypercube_topology, calculate_route_tests) {
   boost::mpi::communicator world;
-  if (world.rank() != 0) return;
+  if (world.rank() != 0) GTEST_SKIP();
 
   std::vector<int> expect;
 
